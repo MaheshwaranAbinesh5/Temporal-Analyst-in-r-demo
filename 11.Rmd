@@ -1,0 +1,32 @@
+#lecture 2 notes
+
+##Installing pacakges
+
+```{r}
+install.packages("tidyverse")
+```
+
+```{r}
+library(tidyverse)
+```
+```{r}
+install.packages("palmerpenguins")
+data<-penguins
+view(data)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,11 @@
+```{r}
+install.packages("dplyr")
+install.packages("readxl")
+library(readxl)
+```
+
+```{r}
+library(readxl)
+data<-read_excel("C:/Users/USER/Downloads/who_ambient_air_quality_database_version_2024_(v6.1).xlsx")
+View(data)
+```
