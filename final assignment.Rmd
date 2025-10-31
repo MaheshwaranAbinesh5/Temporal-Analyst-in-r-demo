@@ -1,0 +1,70 @@
+```{r}
+packages <- c("readr", "dplyr", "tidyr", "ggplot2", "broom", "lubridate", "countrycode", "scales")
+installed <- packages %in% rownames(installed.packages())
+if (any(!installed)) {
+install.packages(packages[!installed], dependencies = TRUE)
+}
+invisible(lapply(packages, library, character.only = TRUE))
+
+```
+```{r}
+file_path <- "C:\\Users\\USER\\Desktop\\Temporal-Analyst-in-r-demo\\who_ambient_air_quality_database_version_2024_(v6.1) (1).csv"
+```
+
+```{r}
+raw <- read_csv(file_path)
+```
+```{r}
+glimpse(raw)
+colnames(raw)
+
+```
+```{r}
+names(raw) <- make.names(names(raw), unique = TRUE)
+```
+
+```{r}
+possible_years <- c("Year", "year", "Measurement.Year", "Year.of.measurement", "measurement_year")
+possible_country <- c("Country", "country", "Country.or.Territory", "CountryName", "Country/Territory")
+possible_pm25 <- c("PM2.5", "PM2.5..µg.m.3.", "PM2.5..ug.m.3.", "PM25", "pm2_5", "PM2_5")
+possible_pm10 <- c("PM10", "PM10..µg.m.3.", "PM10..ug.m.3.", "pm10")
+possible_no2 <- c("NO2", "NO2..µg.m.3.", "NO2..ug.m.3.", "no2")
+possible_o3 <- c("O3", "Ozone", "o3")
+
+```
+
+```{r}
+find_col <- function(df, candidates) {
+nm <- names(df)
+
+
+found <- intersect(nm, candidates)
+if (length(found) > 0) return(found[1])
+
+cand_norm <- tolower(gsub("[^a-z0-9]", "", candidates))
+nm_norm <- tolower(gsub("[^a-z0-9]", "", nm))
+for (i in seq_along(candidates)) {
+m <- which(grepl(cand_norm[i], nm_norm, fixed = TRUE))
+if (length(m) > 0) return(nm[m[1]])
+}
+return(NA_character_)
+}
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
