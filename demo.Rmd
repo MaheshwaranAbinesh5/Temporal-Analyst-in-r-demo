@@ -1,0 +1,258 @@
+```{r}
+packages <- c("readr", "dplyr", "tidyr", "ggplot2", "broom", "lubridate", "countrycode", "scales")
+installed <- packages %in% rownames(installed.packages())
+if (any(!installed)) {
+install.packages(packages[!installed], dependencies = TRUE)
+}
+invisible(lapply(packages, library, character.only = TRUE))
+
+```
+```{r}
+file_path <- "C:\\Users\\USER\\Desktop\\Temporal-Analyst-in-r-demo\\who_ambient_air_quality_database_version_2024_(v6.1) (1).csv"
+```
+
+```{r}
+raw <- read_csv(file_path)
+```
+```{r}
+glimpse(raw)
+colnames(raw)
+
+```
+```{r}
+names(raw) <- make.names(names(raw), unique = TRUE)
+```
+
+```{r}
+possible_years <- c("Year", "year", "Measurement.Year", "Year.of.measurement", "measurement_year")
+possible_country <- c("Country", "country", "Country.or.Territory", "CountryName", "Country/Territory")
+possible_pm25 <- c("PM2.5", "PM2.5..µg.m.3.", "PM2.5..ug.m.3.", "PM25", "pm2_5", "PM2_5")
+possible_pm10 <- c("PM10", "PM10..µg.m.3.", "PM10..ug.m.3.", "pm10")
+possible_no2 <- c("NO2", "NO2..µg.m.3.", "NO2..ug.m.3.", "no2")
+possible_o3 <- c("O3", "Ozone", "o3")
+
+```
+
+```{r}
+find_col <- function(df, candidates) {
+nm <- names(df)
+
+
+found <- intersect(nm, candidates)
+if (length(found) > 0) return(found[1])
+
+cand_norm <- tolower(gsub("[^a-z0-9]", "", candidates))
+nm_norm <- tolower(gsub("[^a-z0-9]", "", nm))
+for (i in seq_along(candidates)) {
+m <- which(grepl(cand_norm[i], nm_norm, fixed = TRUE))
+if (length(m) > 0) return(nm[m[1]])
+}
+return(NA_character_)
+}
+
+```
+
+```{r}
+col_year <- find_col(raw, possible_years)
+col_country <- find_col(raw, possible_country)
+col_pm25 <- find_col(raw, possible_pm25)
+col_pm10 <- find_col(raw, possible_pm10)
+col_no2 <- find_col(raw, possible_no2)
+col_o3 <- find_col(raw, possible_o3)
+
+
+```
+
+```{r}
+col_year <- find_col(raw, possible_years)
+col_country <- find_col(raw, possible_country)
+col_pm25 <- find_col(raw, possible_pm25)
+col_pm10 <- find_col(raw, possible_pm10)
+col_no2 <- find_col(raw, possible_no2)
+col_o3 <- find_col(raw, possible_o3)
+
+```
+
+```{r}
+if (is.na(col_year) || is.na(col_country) || (is.na(col_pm25) && is.na(col_pm10))) {
+stop("Critical columns not detected automatically. Inspect column names and modify detection rules or set file_path correctly.")
+}
+
+```
+
+```{r}
+library(magrittr)
+library(countrycode)
+library(tidyverse)
+```
+
+
+
+
+```{r}
+df <- raw %>%
+dplyr::select(
+Year = all_of(col_year),
+Country = all_of(col_country),
+PM25 = any_of(col_pm25),
+PM10 = any_of(col_pm10),
+NO2 = any_of(col_no2),
+O3 = any_of(col_o3)
+) %>%
+mutate(
+Year = as.numeric(Year),
+PM25 = as.numeric(PM25),
+PM10 = as.numeric(PM10),
+NO2 = as.numeric(NO2),
+O3 = as.numeric(O3),
+Country = as.character(Country)
+)
+df <- df %>% mutate(Continent = countrycode(Country, origin = "country.name", destination = "continent"))
+```
+
+```{r}
+glimpse(df)
+summary(df)
+
+```
+
+```{r}
+df_filtered <- df %>%
+filter(!is.na(Year) & Year >= 2010 & Year <= 2022) %>%
+mutate(Country = trimws(Country))
+
+```
+
+```{r}
+table(df_filtered$Year)
+```
+
+```{r}
+agg_country_year <- df_filtered %>%
+group_by(Country, Continent, Year) %>%
+summarise(
+PM25_mean = mean(PM25, na.rm = TRUE),
+PM10_mean = mean(PM10, na.rm = TRUE),
+NO2_mean = mean(NO2, na.rm = TRUE),
+O3_mean = mean(O3, na.rm = TRUE),
+n_obs = n(),
+.groups = "drop"
+) %>%
+mutate(across(ends_with("_mean"), ~ ifelse(is.nan(.), NA, .)))
+```
+
+```{r}
+glimpse(agg_country_year)
+```
+
+```{r}
+country_counts <- agg_country_year %>%
+group_by(Country, Continent) %>%
+summarise(
+years_with_pm25 = sum(!is.na(PM25_mean)),
+years_with_pm10 = sum(!is.na(PM10_mean)),
+first_year = min(Year, na.rm = TRUE),
+last_year = max(Year, na.rm = TRUE),
+.groups = "drop"
+) %>%
+arrange(desc(years_with_pm25))
+
+```
+
+```{r}
+head(country_counts, 20)
+```
+
+```{r}
+eligible_countries <- country_counts %>% filter(years_with_pm25 >= 6) %>% pull(Country)
+```
+
+```{r}
+trend_pm25_list <- agg_country_year %>%
+filter(Country %in% eligible_countries) %>%
+group_by(Country, Continent) %>%
+filter(!all(is.na(PM25_mean))) %>%
+do({
+dat <- .
+# Fit linear model; safely handle small sample sizes
+model <- lm(PM25_mean ~ Year, data = dat)
+tidy_model <- broom::tidy(model)
+glance_model <- broom::glance(model)
+# return both tidy and glance info joined
+tidy_model %>% mutate(r.squared = glance_model$r.squared)
+}) %>%
+ungroup()
+
+```
+
+```{r}
+slope_pm25 <- trend_pm25_list %>%
+filter(term == "Year") %>%
+select(Country, Continent, estimate, std.error, statistic, p.value, r.squared) %>%
+rename(slope = estimate, slope_se = std.error, slope_t = statistic)
+
+```
+
+```{r}
+slope_pm25 <- slope_pm25 %>% arrange(slope)
+```
+
+
+```{r}
+head(slope_pm25, 10)
+tail(slope_pm25, 10)
+
+```
+
+```{r}
+pm25_2010_2022 <- agg_country_year %>%
+filter(Year %in% c(2010, 2022)) %>%
+select(Country, Year, PM25_mean) %>%
+pivot_wider(names_from = Year, values_from = PM25_mean, names_prefix = "Y") %>%
+rename(PM25_2010 = Y2010, PM25_2022 = Y2022) %>%
+mutate(
+pct_change = case_when(
+!is.na(PM25_2010) & !is.na(PM25_2022) & PM25_2010 != 0 ~ (PM25_2022 - PM25_2010) / PM25_2010 * 100,
+TRUE ~ NA_real_
+)
+)
+
+```
+
+```{r}
+pm25_summary <- pm25_2010_2022 %>%
+left_join(slope_pm25, by = "Country") %>%
+arrange(pct_change)
+
+```
+
+
+```{r}
+head(pm25_summary, 20)
+```
+
+
+```{r}
+ggplot(agg_country_year %>% filter(Country %in% head(eligible_countries, 10)), 
+       aes(x = Year, y = PM25_mean, color = Country)) +
+  geom_line() +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE) +
+  labs(title = "PM2.5 Trends (2010-2022)", y = "PM2.5 (µg/m³)") +
+  theme_minimal()
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+

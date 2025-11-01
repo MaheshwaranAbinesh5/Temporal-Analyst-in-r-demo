@@ -52,6 +52,71 @@ return(NA_character_)
 
 ```
 
+```{r}
+col_year <- find_col(raw, possible_years)
+col_country <- find_col(raw, possible_country)
+col_pm25 <- find_col(raw, possible_pm25)
+col_pm10 <- find_col(raw, possible_pm10)
+col_no2 <- find_col(raw, possible_no2)
+col_o3 <- find_col(raw, possible_o3)
+
+
+```
+
+
+```{r}
+col_year <- find_col(raw, possible_years)
+col_country <- find_col(raw, possible_country)
+col_pm25 <- find_col(raw, possible_pm25)
+col_pm10 <- find_col(raw, possible_pm10)
+col_no2 <- find_col(raw, possible_no2)
+col_o3 <- find_col(raw, possible_o3)
+
+```
+
+```{r}
+if (is.na(col_year) || is.na(col_country) || (is.na(col_pm25) && is.na(col_pm10))) {
+stop("Critical columns not detected automatically. Inspect column names and modify detection rules or set file_path correctly.")
+}
+
+```
+
+```{r}
+library(magrittr)
+library(countrycode)
+library(tidyverse)
+```
+
+
+
+
+```{r}
+df <- raw %>%
+dplyr::select(
+Year = all_of(col_year),
+Country = all_of(col_country),
+PM25 = any_of(col_pm25),
+PM10 = any_of(col_pm10),
+NO2 = any_of(col_no2),
+O3 = any_of(col_o3)
+) %>%
+mutate(
+Year = as.numeric(Year),
+PM25 = as.numeric(PM25),
+PM10 = as.numeric(PM10),
+NO2 = as.numeric(NO2),
+O3 = as.numeric(O3),
+Country = as.character(Country)
+)
+df <- df %>% mutate(Continent = countrycode(Country, origin = "country.name", destination = "continent"))
+```
+
+```{r}
+glimpse(df)
+summary(df)
+
+```
+
 
 
 
