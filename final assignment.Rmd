@@ -117,9 +117,34 @@ summary(df)
 
 ```
 
+```{r}
+df_filtered <- df %>%
+filter(!is.na(Year) & Year >= 2010 & Year <= 2022) %>%
+mutate(Country = trimws(Country))
 
+```
 
+```{r}
+table(df_filtered$Year)
+```
 
+```{r}
+agg_country_year <- df_filtered %>%
+group_by(Country, Continent, Year) %>%
+summarise(
+PM25_mean = mean(PM25, na.rm = TRUE),
+PM10_mean = mean(PM10, na.rm = TRUE),
+NO2_mean = mean(NO2, na.rm = TRUE),
+O3_mean = mean(O3, na.rm = TRUE),
+n_obs = n(),
+.groups = "drop"
+) %>%
+mutate(across(ends_with("_mean"), ~ ifelse(is.nan(.), NA, .)))
+```
+
+```{r}
+glimpse(agg_country_year)
+```
 
 
 
