@@ -147,8 +147,64 @@ glimpse(agg_country_year)
 ```
 
 
+```{r}
+country_counts <- agg_country_year %>%
+group_by(Country, Continent) %>%
+summarise(
+years_with_pm25 = sum(!is.na(PM25_mean)),
+years_with_pm10 = sum(!is.na(PM10_mean)),
+first_year = min(Year, na.rm = TRUE),
+last_year = max(Year, na.rm = TRUE),
+.groups = "drop"
+) %>%
+arrange(desc(years_with_pm25))
+
+```
+
+```{r}
+head(country_counts, 20)
+```
+
+```{r}
+eligible_countries <- country_counts %>% filter(years_with_pm25 >= 6) %>% pull(Country)
+```
+
+```{r}
+trend_pm25_list <- agg_country_year %>%
+filter(Country %in% eligible_countries) %>%
+group_by(Country, Continent) %>%
+filter(!all(is.na(PM25_mean))) %>%
+do({
+dat <- .
+# Fit linear model; safely handle small sample sizes
+model <- lm(PM25_mean ~ Year, data = dat)
+tidy_model <- broom::tidy(model)
+glance_model <- broom::glance(model)
+# return both tidy and glance info joined
+tidy_model %>% mutate(r.squared = glance_model$r.squared)
+}) %>%
+ungroup()
+
+```
+
+```{r}
+slope_pm25 <- trend_pm25_list %>%
+filter(term == "Year") %>%
+select(Country, Continent, estimate, std.error, statistic, p.value, r.squared) %>%
+rename(slope = estimate, slope_se = std.error, slope_t = statistic)
+
+```
+
+```{r}
+slope_pm25 <- slope_pm25 %>% arrange(slope)
+```
 
 
+```{r}
+head(slope_pm25, 10)
+tail(slope_pm25, 10)
+
+```
 
 
 
