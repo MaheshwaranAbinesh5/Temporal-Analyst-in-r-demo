@@ -206,7 +206,32 @@ tail(slope_pm25, 10)
 
 ```
 
+```{r}
+pm25_2010_2022 <- agg_country_year %>%
+filter(Year %in% c(2010, 2022)) %>%
+select(Country, Year, PM25_mean) %>%
+pivot_wider(names_from = Year, values_from = PM25_mean, names_prefix = "Y") %>%
+rename(PM25_2010 = Y2010, PM25_2022 = Y2022) %>%
+mutate(
+pct_change = case_when(
+!is.na(PM25_2010) & !is.na(PM25_2022) & PM25_2010 != 0 ~ (PM25_2022 - PM25_2010) / PM25_2010 * 100,
+TRUE ~ NA_real_
+)
+)
 
+```
+
+```{r}
+pm25_summary <- pm25_2010_2022 %>%
+left_join(slope_pm25, by = "Country") %>%
+arrange(pct_change)
+
+```
+
+
+```{r}
+head(pm25_summary, 20)
+```
 
 
 
