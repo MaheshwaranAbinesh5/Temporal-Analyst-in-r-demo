@@ -1,3 +1,7 @@
+# The Temporal Analyst - M.Abinesh(34614)
+## Analysis of Long-Term Air Quality Trends (2010–2022)
+
+
 ```{r}
 packages <- c("readr", "dplyr", "tidyr", "ggplot2", "broom", "lubridate", "countrycode", "scales")
 installed <- packages %in% rownames(installed.packages())
@@ -125,8 +129,30 @@ mutate(Country = trimws(Country))
 ```
 
 ```{r}
+region_data <- df_filtered %>%
+  filter(Country %in% c("India", "Sri Lanka", "Pakistan", "Bangladesh"))
+```
+
+
+
+```{r}
 table(df_filtered$Year)
 ```
+```{r}
+yearly_summary <- region_data %>%
+  group_by(Year) %>%
+  summarise(
+    mean_PM25 = mean(PM25, na.rm = TRUE),
+    mean_PM10 = mean(PM10, na.rm = TRUE),
+    mean_NO2  = mean(NO2,  na.rm = TRUE),
+    sd_PM25   = sd(PM25,   na.rm = TRUE),
+    count     = n()
+  )
+
+print(yearly_summary)
+```
+
+
 
 ```{r}
 agg_country_year <- df_filtered %>%
@@ -233,9 +259,73 @@ arrange(pct_change)
 head(pm25_summary, 20)
 ```
 
+```{r}
+
+yearly_summary <- region_data %>%
+  group_by(Year) %>%
+  summarise(
+    mean_PM25 = mean(PM25, na.rm = TRUE),
+    mean_PM10 = mean(PM10, na.rm = TRUE),
+    mean_NO2  = mean(NO2,  na.rm = TRUE),
+    sd_PM25   = sd(PM25,   na.rm = TRUE),
+    count     = n()
+  )
+
+print(yearly_summary)
+
+```
+```{r}
+missing_data <- df %>%
+  group_by(Year) %>%
+  summarise(
+    missing_PM25 = sum(is.na(PM25)),
+    missing_PM10 = sum(is.na(PM10)),
+    missing_NO2  = sum(is.na(NO2))
+  )
+
+ggplot(missing_data, aes(x = Year)) +
+  geom_bar(aes(y = missing_PM25, fill = "PM2.5"), stat = "identity") +
+  geom_bar(aes(y = missing_PM10, fill = "PM10"), stat = "identity", alpha = 0.7) +
+  geom_bar(aes(y = missing_NO2, fill = "NO2"),  stat = "identity", alpha = 0.5) +
+  labs(title = "Missing Data by Year",
+       y = "Number of Missing Records",
+       x = "Year") +
+  theme_minimal()
+
+```
 
 
 
+```{r}
 
+library(tidyr)
+
+long_data <- yearly_summary %>%
+  pivot_longer(cols = starts_with("mean_"),
+               names_to = "Pollutant",
+               values_to = "Value")
+
+ggplot(long_data, aes(x = Year, y = Value, color = Pollutant, group = Pollutant)) +
+  geom_line(size = 1.2) +
+  geom_point(size = 2) +
+  labs(title = "Air Quality Trends (2010–2022) - South Asia",
+       y = "Mean Concentration (µg/m³)",
+       x = "Year") +
+  theme_minimal()
+
+```
+
+### Interpretation and Discussion
+The analysis of air pollutants (PM2.5, PM10, and NO₂) between 2010 and 2022 in the South Asian region reveals a gradual improvement in air quality.  
+PM2.5 and PM10 concentrations show a steady decline after 2016, while NO₂ remains relatively stable.  
+This indicates that industrial and vehicular emissions continue to impact air quality but are offset by environmental regulations and cleaner energy policies.  
+Data availability is uneven across years (e.g., 2011–2013), which may slightly affect accuracy.
+
+
+### Conclusion
+Based on aggregated yearly trends, the selected region shows an overall improvement in air quality from 2010 to 2022.  
+Particulate matter (PM2.5 and PM10) levels have declined, suggesting positive effects of policy interventions,  
+while NO₂ levels remain nearly constant.  
+Overall, this supports the argument that air quality in South Asia is improving, though further emission reductions are still needed.
 
 
