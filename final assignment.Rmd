@@ -228,7 +228,7 @@ slope_pm25 <- slope_pm25 %>% arrange(slope)
 
 ```{r}
 head(slope_pm25, 10)
-tail(slope_pm25, 10)
+tail(slope_pm25, 10)  
 
 ```
 
